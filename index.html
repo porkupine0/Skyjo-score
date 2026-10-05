@@ -97,6 +97,17 @@ td .out{display:inline-block;width:8px;height:8px;border-radius:50%;background:v
 tfoot td{font-weight:800;border-bottom:0}
 .legend{font-size:13px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
 
+/* how to play */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tab{padding:9px 6px;border-radius:10px;font-size:15px}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.guide h3{font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-size:16px;font-weight:800;color:var(--accent);margin:0}
+.guide section{display:flex;flex-direction:column;gap:6px}
+.guide p,.guide li{font-size:15px;line-height:1.55;max-width:65ch}
+.guide p{margin:0}
+.guide ul,.guide ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.example{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+
 .banner{background:var(--green);color:var(--surface);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
 .banner h2{font-size:26px;font-weight:800}
 .banner button{background:var(--surface);color:var(--ink);border-color:var(--surface)}
@@ -166,7 +177,8 @@ table.st th:first-child,table.st td:first-child{text-align:left}
 <script>
 const LIMIT = 100;
 const KEY = "skyjo-scorekeeper-v1";
-let state = load() || { phase:"setup", count:4, names:["","","","","","","",""], players:[], rounds:[], limit:LIMIT };
+let state = load() || { phase:"setup", count:4, names:["","","","","","","",""], players:[], rounds:[], limit:LIMIT, tab:"game" };
+if (!state.tab) state.tab = "game";
 let entry = null; // {editing:index|null, raw:[strings], out:index|null, error:""}
 let confirmKey = null, confirmTimer = null;
 
@@ -223,14 +235,51 @@ document.addEventListener("visibilitychange", keepAwake);
 function render(){
   const app = document.getElementById("app");
   const focusId = document.activeElement && document.activeElement.id;
-  app.innerHTML = state.phase === "setup" ? setupView() : playView();
+  app.innerHTML = state.tab === "guide" ? header() + guideView() : state.phase === "setup" ? setupView() : playView();
   if (focusId){ const el = document.getElementById(focusId); if (el) el.focus(); }
   keepAwake();
 }
 
 function header(extra=""){
   return `<div class="brand"><div><h1>Skyjo</h1>
-    <div class="stripe" aria-hidden="true"><i style="background:var(--navy)"></i><i style="background:var(--sky)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i><i style="background:var(--red)"></i></div></div><div class="hx-hbtns">${hx.button()}${extra}</div></div>`;
+    <div class="stripe" aria-hidden="true"><i style="background:var(--navy)"></i><i style="background:var(--sky)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i><i style="background:var(--red)"></i></div></div><div class="hx-hbtns">${hx.button()}${extra}</div></div>
+  <div class="tabs" role="tablist"><button class="tab" role="tab" id="tab-game" data-act="tab" data-v="game" aria-selected="${state.tab==="game"}">Game</button><button class="tab" role="tab" id="tab-guide" data-act="tab" data-v="guide" aria-selected="${state.tab==="guide"}">How to play</button></div>`;
+}
+
+function guideView(){
+  return `<div class="panel guide">
+    <section><h2>The idea</h2><p>In Skyjo, low is good. Everyone has a grid of 12 face-down cards. Swap in low cards, turn your cards over, and try to finish each round with the lowest total. When anyone reaches ${state.limit}, the lowest score wins.</p></section>
+    <section><h3>What you need</h3><ul><li>2 to 8 players.</li><li>A Skyjo deck: 150 cards numbered from −2 to 12.</li></ul></section>
+    <section><h3>1. Setup</h3>
+      <ul><li>Deal 12 cards face down to each player. Without looking, lay them out in a grid of 3 rows and 4 columns.</li>
+      <li>The rest of the deck is the draw pile. Turn its top card face up to start the discard pile.</li>
+      <li>Everyone turns 2 of their cards face up. Whoever shows the highest total goes first. In later rounds, whoever ended the last round goes first.</li></ul></section>
+    <section><h3>2. Your turn</h3>
+      <p>Play goes to the left. On your turn, do one of these:</p>
+      <ul><li>Take the top card of the discard pile and swap it with any card in your grid. The card you replace goes face up on the discard pile.</li>
+      <li>Draw from the draw pile. Then either swap it with any card in your grid, or discard it and turn one of your face-down cards face up.</li></ul></section>
+    <section><h3>3. Clearing a column</h3><p>When a column shows three face-up cards of the same number, discard the whole column. Those cards don't count anymore, even if they were three 12s.</p></section>
+    <section><h3>4. Ending a round</h3><p>When someone has turned over all their cards, everyone else gets one more turn. Then turn over any face-down cards and add up each grid. Negative cards subtract.</p></section>
+    <section><h3>5. Scoring</h3>
+      <p>Each player scores the total of their grid. But the player who ended the round has to be strictly the lowest. If anyone else ties or beats them, their score is doubled. That only applies to a score above 0.</p>
+      <div class="example"><span><b>Example:</b> Max turns over his last card with a total of 14. Lena has 9.</span><span>Max isn't the lowest, so his 14 doubles to 28.</span></div></section>
+    <section><h3>6. Winning</h3><p>The game ends after the round in which anyone reaches ${state.limit}. The lowest total wins.</p></section>
+    <section><h3>Strategy tips</h3>
+      <ul><li>Get rid of 9s through 12s early.</li>
+      <li>Collect matching numbers in a column. Three of a kind wipes them out.</li>
+      <li>Don't end a round unless you're sure you're the lowest. A doubled score hurts.</li>
+      <li>Watch what you discard. It might be just what the next player needs for a column.</li>
+      <li>When someone is about to finish, replace face-down cards with known low cards. A card you haven't seen could be a 12.</li></ul></section>
+    <section><h3>Using this app</h3>
+      <ol><li>Pick 2 to 8 players and enter their names.</li>
+      <li>After each round, tap Enter round scores. Type each player's total, and tap ± for a negative score.</li>
+      <li>Tap Went out for whoever turned over all their cards first. The app doubles their score when the rule applies.</li>
+      <li>Tap a round number in the table to fix a mistake.</li></ol></section>
+    <section><h3>Glossary</h3>
+      <ul><li><b>Grid:</b> your 12 cards, 3 rows by 4 columns.</li>
+      <li><b>Going out:</b> turning over your last face-down card, which ends the round.</li>
+      <li><b>Doubling:</b> the penalty for going out without the lowest score.</li></ul></section>
+  </div>`;
 }
 
 function setupView(){
@@ -342,6 +391,7 @@ document.addEventListener("click", e => {
   const act = b.dataset.act, i = b.dataset.i != null ? +b.dataset.i : null;
   switch(act){
     case "count": state.count = Math.min(8, Math.max(2, state.count + +b.dataset.d)); save(); render(); break;
+    case "tab": state.tab = b.dataset.v; save(); render(); window.scrollTo(0,0); break;
     case "start":
       state.players = Array.from({length:state.count}, (_,k)=> (state.names[k]||"").trim() || `Player ${k+1}`);
       state.rounds = []; state.phase = "play"; entry = null; save(); render(); break;
